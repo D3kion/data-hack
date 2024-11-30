@@ -6,9 +6,9 @@ export function Header() {
     <header className="h-[60px] border-b flex justify-between items-center px-6">
       <Link
         to="/"
-        className="py-3 px-1 scroll-m-20 text-2xl font-extrabold tracking-tight lg:text-3xl"
+        className="py-3 px-1 scroll-m-20 text-2xl font-extrabold tracking-tight lg:text-3xl text-primary"
       >
-        Data Hamsters
+        DataWarHamsters
       </Link>
       <ModeToggle />
     </header>

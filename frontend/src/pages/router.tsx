@@ -4,6 +4,7 @@ import { AuthLayout, ProtectedLayout } from "@/widgets/layout";
 
 import LoginPage from "./auth/login";
 import LakeListPage from "./lake/list";
+import DashboardPage from "./dash";
 
 export function Router() {
   return (
@@ -12,10 +13,10 @@ export function Router() {
         <Route path="/auth" element={<AuthLayout />}>
           <Route index element={<LoginPage />} />
         </Route>
-        {/* PROTECTED ROUETS */}
         <Route path="/" element={<ProtectedLayout />}>
           <Route index element={<LakeListPage />} />
           <Route path="lake" element={<LakeListPage />} />
+          <Route path="dash" element={<DashboardPage />} />
         </Route>
       </Routes>
     </BrowserRouter>

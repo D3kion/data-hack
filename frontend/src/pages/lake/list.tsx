@@ -158,7 +158,7 @@ export default function LakeListPage() {
     <div className="container space-y-6">
       <div className="flex items-end justify-between">
         <h2 className="scroll-m-20 text-3xl font-extrabold tracking-tight lg:text-4xl">
-          Lake
+          Сырые данные
         </h2>
         <LakeImportDialog />
       </div>

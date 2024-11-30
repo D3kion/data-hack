@@ -26,16 +26,16 @@ export function ProtectedLayout() {
         <nav className="border-r min-w-[320px] p-6 pt-4 flex flex-col justify-between max-lg:hidden">
           <div className="flex flex-col items-start">
             <Button variant="link" asChild>
-              <Link to="/lake">Данные (lake)</Link>
+              <Link to="/lake">Сырые данные</Link>
             </Button>
             <Button variant="link" disabled>
-              Хранилище (vault)
+              Хранилище
             </Button>
             <Button variant="link" disabled>
-              Витрины (marts)
+              Витрины
             </Button>
             <Button variant="link" asChild>
-              <Link to="/">Отчеты</Link>
+              <Link to="/dash">Отчеты</Link>
             </Button>
           </div>
           <div>
