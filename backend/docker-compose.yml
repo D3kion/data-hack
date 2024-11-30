@@ -1,0 +1,71 @@
+version: '3.8'
+
+services:
+  # Сервис для вашего Node.js приложения
+  app:
+    build: .
+    container_name: node-api
+    ports:
+      - "3000:3000"
+    environment:
+      PGUSER: ${PGUSER}
+      PGHOST: db
+      PGDATABASE: ${PGDATABASE}
+      PGPASSWORD: ${PGPASSWORD}
+      PGPORT: 5432
+      MINIO_ENDPOINT: minio  # Указываем имя сервиса MinIO
+      MINIO_PORT: 9000
+      MINIO_USE_SSL: 'false'
+      MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY}
+      MINIO_SECRET_KEY: ${MINIO_SECRET_KEY}
+      MINIO_BUCKET_NAME: ${MINIO_BUCKET_NAME}
+      JWT_SECRET: ${JWT_SECRET}
+    depends_on:
+      - db
+      - minio
+    volumes:
+      - .:/app
+    networks:
+      - app-network
+
+  # Сервис для базы данных PostgreSQL
+  db:
+    image: postgres:13
+    container_name: postgres-db
+    environment:
+      POSTGRES_USER: ${PGUSER}
+      POSTGRES_PASSWORD: ${PGPASSWORD}
+      POSTGRES_DB: ${PGDATABASE}
+    ports:
+      - "5432:5432"
+    volumes:
+      - pg-data:/var/lib/postgresql/data
+    networks:
+      - app-network
+
+  # Сервис для MinIO
+  minio:
+    image: minio/minio:latest
+    container_name: minio
+    environment:
+      MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY}
+      MINIO_SECRET_KEY: ${MINIO_SECRET_KEY}
+    ports:
+      - "9000:9000"
+    command: server /data
+    volumes:
+      - minio-data:/data
+    networks:
+      - app-network
+
+# Сетевые настройки
+networks:
+  app-network:
+    driver: bridge
+
+# Том для данных PostgreSQL и MinIO
+volumes:
+  pg-data:
+    driver: local
+  minio-data:
+    driver: local
