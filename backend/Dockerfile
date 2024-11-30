@@ -1,20 +1,12 @@
-# Используем официальный Node.js образ
-FROM node:16
+FROM python:3.10
 
-# Устанавливаем рабочую директорию в контейнере
+# Установка зависимостей
 WORKDIR /app
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
 
-# Копируем package.json и package-lock.json для установки зависимостей
-COPY package*.json ./
-
-# Устанавливаем зависимости
-RUN npm install
-
-# Копируем все файлы из локальной папки в рабочую директорию контейнера
+# Копирование исходного кода
 COPY . .
 
-# Открываем порт 3000
-EXPOSE 3000
-
-# Команда для запуска приложения
-CMD ["node", "server.js"]
+# Запуск приложения
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
