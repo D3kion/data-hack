@@ -338,6 +338,19 @@ app.delete('/delete/:filename', authenticateJWT, (req, res) => {
 });
 
 // 7. Получение метрик (средние значения)
+/**
+ * @swagger
+ * /metrics:
+ *   get:
+ *     summary: Получить метрики по файлам
+ *     security:
+ *       - BearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Метрики по файлам
+ *       500:
+ *         description: Ошибка получения метрик
+ */
 app.get('/metrics', authenticateJWT, async (req, res) => {
   try {
     const objects = await minioClient.listObjects(process.env.MINIO_BUCKET_NAME, '', true);
@@ -346,12 +359,15 @@ app.get('/metrics', authenticateJWT, async (req, res) => {
       files.push(obj.name);
     }
 
-    const metrics = files.map((file) => ({
+    const metrics = await Promise.all(files.map(async (file) => ({
       file,
-      averageLoanAmount: getAverageLoanAmountFromCSV(file),
-    }));
+      averageLoanAmount: await getAverageLoanAmountFromCSV(file),
+      averageLoanTerm: await getAverageLoanTermFromCSV(file),
+      approvalRate: await getApprovalRateFromCSV(file),
+      totalLoanAmount: await getTotalLoanAmountFromCSV(file),
+    })));
 
-    res.status(200).json({ files, metrics });
+    res.status(200).json({ metrics });
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: 'Error fetching metrics' });
@@ -381,7 +397,155 @@ async function getAverageLoanAmountFromCSV(filename) {
   });
 }
 
+// Функция для расчета среднего значения LoanTerm из CSV
+async function getAverageLoanTermFromCSV(filename) {
+  let totalTerm = 0;
+  let count = 0;
+
+  return new Promise((resolve, reject) => {
+    minioClient.getObject(process.env.MINIO_BUCKET_NAME, filename, (err, dataStream) => {
+      if (err) {
+        reject(err);
+      }
+
+      dataStream.pipe(csv())
+        .on('data', (row) => {
+          totalTerm += parseInt(row.LoanTerm) || 0;
+          count++;
+        })
+        .on('end', () => {
+          resolve(count > 0 ? totalTerm / count : 0);
+        });
+    });
+  });
+}
+
+// Функция для расчета процента одобренных кредитов из CSV
+async function getApprovalRateFromCSV(filename) {
+  let approvedCount = 0;
+  let totalCount = 0;
+
+  return new Promise((resolve, reject) => {
+    minioClient.getObject(process.env.MINIO_BUCKET_NAME, filename, (err, dataStream) => {
+      if (err) {
+        reject(err);
+      }
+
+      dataStream.pipe(csv())
+        .on('data', (row) => {
+          totalCount++;
+          if (row.Status === 'Approved') {
+            approvedCount++;
+          }
+        })
+        .on('end', () => {
+          resolve(totalCount > 0 ? (approvedCount / totalCount) * 100 : 0);
+        });
+    });
+  });
+}
+
+// Функция для расчета общего объема кредитов
+async function getTotalLoanAmountFromCSV(filename) {
+  let totalAmount = 0;
+
+  return new Promise((resolve, reject) => {
+    minioClient.getObject(process.env.MINIO_BUCKET_NAME, filename, (err, dataStream) => {
+      if (err) {
+        reject(err);
+      }
+
+      dataStream.pipe(csv())
+        .on('data', (row) => {
+          totalAmount += parseFloat(row.LoanAmount) || 0;
+        })
+        .on('end', () => {
+          resolve(totalAmount);
+        });
+    });
+  });
+}
+
+// 8. Получение списка файлов из MinIO
+/**
+ * @swagger
+ * /files:
+ *   get:
+ *     summary: Получить список всех файлов в MinIO
+ *     security:
+ *       - BearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Список файлов
+ *       500:
+ *         description: Ошибка получения списка файлов
+ */
+app.get('/files', authenticateJWT, (req, res) => {
+  const fileList = [];
+  
+  minioClient.listObjects(process.env.MINIO_BUCKET_NAME, '', true)
+    .on('data', (obj) => {
+      fileList.push({
+        name: obj.name,
+        lastModified: obj.lastModified,
+        size: obj.size,
+      });
+    })
+    .on('end', () => {
+      res.status(200).json(fileList);
+    })
+    .on('error', (err) => {
+      console.error(err);
+      res.status(500).json({ message: 'Error fetching file list from MinIO', error: err });
+    });
+});
+
+// 9. Получение метаданных о файле
+/**
+ * @swagger
+ * /file/{filename}:
+ *   get:
+ *     summary: Получить метаданные о файле
+ *     security:
+ *       - BearerAuth: []
+ *     parameters:
+ *       - name: filename
+ *         in: path
+ *         required: true
+ *         description: Имя файла для получения метаданных
+ *     responses:
+ *       200:
+ *         description: Метаданные о файле
+ *       404:
+ *         description: Файл не найден
+ *       500:
+ *         description: Ошибка получения метаданных
+ */
+app.get('/file/:filename', authenticateJWT, (req, res) => {
+  const { filename } = req.params;
+
+  minioClient.statObject(process.env.MINIO_BUCKET_NAME, filename, (err, stat) => {
+    if (err) {
+      if (err.code === 'NoSuchKey') {
+        return res.status(404).json({ message: 'File not found' });
+      }
+      console.error(err);
+      return res.status(500).json({ message: 'Error fetching file metadata from MinIO', error: err });
+    }
+
+    const fileInfo = {
+      name: filename,
+      size: stat.size,
+      lastModified: stat.lastModified,
+      etag: stat.etag,
+      contentType: stat.contentType,
+    };
+
+    res.status(200).json(fileInfo);
+  });
+});
+
 // Старт сервера
 app.listen(port, () => {
-  console.log(`Server running at http://localhost:${port}`);
+  console.log(`Server is running on port ${port}`);
 });
